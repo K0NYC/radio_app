@@ -18,19 +18,70 @@ with tuner:
         manual_frequencies = st.text_input(
             label='Enter desired frequencies manually',
             placeholder='See Help for instructions',
-            help='''
-                        - For single frequency enter 462.5625M
-                        - For scanning a range, enter 118M:137M:25k
-                        - For scanning multiple frequencies enter comma separated list
-                        '''
+            help=
+            '''
+                - For single frequency enter 462.5625
+                - For scanning a range, enter 118M:137M:25k
+                - For scanning multiple frequencies enter comma separated list
+            '''
         )
 
         ham_calling_frequencies = st.multiselect(
             "Ham Calling Frequencies",
-            ('146,520M', '446.000')
+            ('146.520', '446.000'),
+            help=
+            '''
+                - 2 meter - 146.520
+                - 70 cm - 446.000
+            '''
         )
 
-        frequency_selector_button = st.form_submit_button('Select')
+        weather_service_frequencies = st.multiselect(
+            "NOAA Weather Radio",
+            ('162.400', '162.425', '162.450', '162.475', '162.500', '162.525', '162.550'),
+            help=
+            '''
+                - For state specific frequencies and other information check https://www.weather.gov/nwr/station_listing
+            '''
+        )
+
+        frs_gmrs_frequencies = st.multiselect(
+            "FRS/GMRS",
+            ('462.5625M:462.7250M:25K', '462.5625', '462.5875', '462.6125', '462.6375', '462.6625', '462.6875',
+             '462.7125', '467.5625', '467.5875', '467.6125', '467.6375', '467.6625', '467.6875', '467.7125',
+             '462.5500', '462.5750', '462.6000', '462.6250', '462.6500', '462.6750', '462.7000', '462.7250'),
+            help=
+            '''
+                - Scan all channels 462.5625M:462.7250M:25K
+                -	1	 - 	462.5625 
+                -	2	 - 	462.5875 
+                -	3	 - 	462.6125 
+                -	4	 - 	462.6375 
+                -	5	 - 	462.6625 
+                -	6	 - 	462.6875 
+                -	7	 - 	462.7125 
+                -	8	 - 	467.5625 
+                -	9	 - 	467.5875 
+                -	10	 - 	467.6125 
+                -	11	 - 	467.6375 
+                -	12	 - 	467.6625 
+                -	13	 - 	467.6875 
+                -	14	 - 	467.7125 
+                -	15	 - 	462.5500 
+                -	16	 - 	462.5750 
+                -	17	 - 	462.6000 
+                -	18	 - 	462.6250 
+                -	19	 - 	462.6500 
+                -	20	 - 	462.6750 
+                -	21	 - 	462.7000 
+                -	22	 - 	462.7250 
+            '''
+        )
+
+        frequency_selector_button = st.form_submit_button('Submit')
+
+        if frequency_selector_button:
+            st.write(manual_frequencies, weather_service_frequencies, ham_calling_frequencies, frs_gmrs_frequencies)
 
     with st.form('radio_config'):
 
