@@ -1,6 +1,8 @@
-import streamlit as st
 import subprocess
-from typing import List
+import streamlit as st
+from typing import List, Any
+
+global result
 
 
 def parse_frequency_list(list_of_freq: List) -> str:
@@ -19,6 +21,18 @@ def parse_frequency_list(list_of_freq: List) -> str:
     return formatted_string
 
 
+def execute_process(command: str) -> object:
+    """
+    Execute command
+    :param command:
+    :return: command object
+    """
+    process = subprocess.Popen(
+        command.split()
+    )
+    return process
+
+
 st.set_page_config(
     page_title='SDR',
     page_icon=':signal_strength:',
@@ -26,7 +40,7 @@ st.set_page_config(
 
 st.title("Radio 0")
 
-tuner, frequency_reference = st.tabs(['Config', 'Frequency Reference'])
+tuner, presets = st.tabs(['Config', 'Presets'])
 
 with tuner:
     col1, col2 = st.columns(2)
@@ -34,10 +48,10 @@ with tuner:
     with col1:
         with st.form('frequency_selector'):
             st.write("### Frequency selector")
-            st.write(
-                "Enter or select frequencies in one group at a time, "
-                "then press Submit before configuring other tuner parameters"
-            )
+            # st.write(
+            #     "Enter or select frequencies in one group at a time, "
+            #     "then press Submit before configuring other tuner parameters"
+            # )
 
             frequencies = []
             output = st.text_input(
@@ -138,7 +152,7 @@ with tuner:
             tuner_gain = st.selectbox(
                 'Select tuner gain. 0 = auto',
                 (
-                 '0.0', '0.9', '1.4', '2.7', '3.7', '7.7', '8.7', '12.5', '14.4', '15.7',
+                 '0', '0.9', '1.4', '2.7', '3.7', '7.7', '8.7', '12.5', '14.4', '15.7',
                  '16.6', '19.7', '20.7', '22.9', '25.4', '28.0', '29.7', '32.8', '33.8', '36.4',
                  '37.2', '38.6', '40.2', '42.1', '43.4', '43.9', '44.5', '48.0', '49.6'
                  )
@@ -159,16 +173,19 @@ with tuner:
             )
 
             st.markdown('### Actions')
+            # st.markdown('- play to the local sound card,')
+            # st.markdown('- stream to network on port 8080,')
+            # st.markdown('- sound activated recording to a file (must enter a file name below),')
+            # st.markdown('- play to the local sound card and sound activated recording to a file (must enter a file name below')
 
             action = st.radio(
-                'Select an action: play to the local sound card, \
-                stream to network on port 8080, \
-                sound activated recording to a file (must enter a file name below)',
+                'actions',
                 ('play',
-                 'stream',
-                 'sar',
-                 'play-sar'),
-                horizontal=True
+                'stream',
+                'sar',
+                'play-sar'),
+                horizontal=True,
+                label_visibility='collapsed'
             )
 
             filename = st.text_input(
@@ -203,30 +220,43 @@ with tuner:
                 else:
                     filename = ''
 
+                if 'play-sar' in action:
+                    if not filename:
+                        st.warning("File name required", icon="⚠️")
+                        st.stop()
+                else:
+                    filename = ''
+
                 if deinvert:
                     deinvert = f'--deinvert {preset}'
                 else:
                     deinvert = ''
 
-                base_command = \
-                    f'rtl_fm {frequencies} ' \
-                    f'-M {modulation} ' \
-                    f'-s {sample_rate} ' \
-                    f'-d 0' \
-                    f'-g {tuner_gain} ' \
-                    f'-l {squelch} ' \
-                    f'-p {ppm_error} ' \
-                    f' --{action} {filename}' \
-                    f' {deinvert}'
+                rtl_fm_command = \
+                    f'nohup \
+                    rtl-fm {frequencies}  \
+                    -M {modulation}  \
+                    -s {sample_rate}  \
+                    -d 0  \
+                    -g {tuner_gain} \
+                    -l {squelch}  \
+                    -p {ppm_error}  \
+                    --{action} {filename}  \
+                    {deinvert} &'
 
-                st.write(':red[Executing:]', base_command)
+                st.write(':red[Executing:]', rtl_fm_command)
 
-with st.form("execution_control"):
-    stop = st.form_submit_button(label='Stop')
-    if stop:
-        # p = subprocess.Popen('rtl-fm-stop')
-        pass
+                result = execute_process('rtl-fm-stop 0')
+                st.info(result)
+                result = execute_process(rtl_fm_command)
+                st.info(result)
 
-with frequency_reference:
-    st.header('Frequency Reference')
+        with st.form("execution_control"):
+            stop = st.form_submit_button(label='Stop')
+            if stop:
+                result = execute_process('rtl-fm-stop 0')
+                st.write('Stopping radio 0')
+                st.stop()
 
+with presets:
+    st.header('Presets')
