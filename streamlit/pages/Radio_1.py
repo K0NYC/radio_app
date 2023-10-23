@@ -1,3 +1,4 @@
+import time
 import subprocess
 import streamlit as st
 from typing import List, Any
@@ -19,18 +20,6 @@ def parse_frequency_list(list_of_freq: List) -> str:
     return formatted_string
 
 
-def execute_process(command: str) -> object:
-    """
-    Execute command
-    :param command:
-    :return: command object
-    """
-    process = subprocess.Popen(
-        command.split()
-    )
-    return process
-
-
 st.set_page_config(
     page_title='SDR',
     page_icon=':signal_strength:',
@@ -44,6 +33,22 @@ with tuner:
     col1, col2 = st.columns(2)
 
     with col1:
+
+        with st.status("Radio 1 status", expanded=True):
+            check = st.button("Check")
+            if check:
+                output = subprocess.run(
+                    "ps -ef | grep rtl-fm | grep -e '-d 1' | grep -v grep | cut -d ' ' -f 21- | cut -d/ -f 6-",
+                    capture_output=True,
+                    text=True,
+                    shell=True
+                ).stdout
+                if output:
+                    st.info('Radio is running the following parameters:')
+                    st.info(output)
+                else:
+                    st.info('Radio is not running')
+
         with st.form('frequency_selector'):
             st.write("### Frequency selector")
             # st.write(
@@ -125,18 +130,6 @@ with tuner:
             if output:
                 frequencies = parse_frequency_list(output)
 
-            frequency_selector_button = st.form_submit_button('Submit')
-
-            if frequency_selector_button:
-                if frequencies:
-                    st.info(frequencies)
-                else:
-                    st.error('No frequencies were entered')
-
-    with col2:
-        with st.form('radio_config'):
-            st.write('### Tuner parameters')
-
             modulation = st.selectbox(
                 'Select modulation',
                 ('fm', 'am', 'wbfm', 'raw', 'usb', 'lsb')
@@ -144,11 +137,16 @@ with tuner:
 
             sample_rate = st.selectbox(
                 'Select sample rate',
-                ('30k', '24k', '20k', '16k', '8k')
+                ('180k', '48k', '30k', '24k', '20k', '16k', '12k', '8k')
+            )
+
+            playback_sample_rate = st.selectbox(
+                'Select playback sample rate',
+                ('180k', '48k', '30k', '24k', '20k', '16k', '12k', '8k')
             )
 
             tuner_gain = st.selectbox(
-                'Select tuner gain. 0 = auto',
+                'Select tuner gain.',
                 (
                     '0', '0.9', '1.4', '2.7', '3.7', '7.7', '8.7', '12.5', '14.4', '15.7',
                     '16.6', '19.7', '20.7', '22.9', '25.4', '28.0', '29.7', '32.8', '33.8', '36.4',
@@ -170,18 +168,20 @@ with tuner:
                 step=1
             )
 
-            st.markdown('### Actions')
-            # st.markdown('- play to the local sound card,')
-            # st.markdown('- stream to network on port 8080,')
-            # st.markdown('- sound activated recording to a file (must enter a file name below),')
-            # st.markdown('- play to the local sound card and sound activated recording to a file (must enter a file name below')
+            st.markdown(
+                '### Actions',
+                help=
+                '''
+                    - play to the local sound card,
+                    - stream to network on port 8080,
+                    - sound activated recording to a file (must enter a file name below),
+                    - play to the local sound card and sound activated recording to a file (must enter a file name below
+                '''
+            )
 
             action = st.radio(
                 'actions',
-                ('play',
-                 'stream',
-                 'sar',
-                 'play-sar'),
+                ('play', 'stream', 'sar', 'play-sar'),
                 horizontal=True,
                 label_visibility='collapsed'
             )
@@ -193,9 +193,7 @@ with tuner:
 
             st.markdown('### Options')
 
-            deinvert = st.checkbox(
-                'deinvert'
-            )
+            deinvert = st.checkbox('deinvert')
 
             preset = st.slider(
                 'Select deinvert preset',
@@ -207,7 +205,9 @@ with tuner:
             tuner_start_button = st.form_submit_button('Start')
 
             if tuner_start_button:
-                if not frequencies:
+                if frequencies:
+                    st.info(frequencies)
+                else:
                     st.warning("Please enter frequency", icon="⚠️")
                     st.stop()
 
@@ -230,34 +230,58 @@ with tuner:
                 else:
                     deinvert = ''
 
-                rtl_fm_command = [
-                    'nohup',
-                    f'rtl-fm {frequencies}',
-                    f'-M {modulation} ',
-                    f'-s {sample_rate} ',
-                    f'-d 1 ',
-                    f'-g {tuner_gain} ',
-                    f'-l {squelch} ',
-                    f'-p {ppm_error} ',
-                    f'--{action} {filename} ',
-                    f'{deinvert} ',
-                    '&'
-                ]
+                rtl_fm_command = \
+                    f'nohup \
+                    /home/rlevit/.local/bin/rtl-fm {frequencies}  \
+                    -M {modulation}  \
+                    -s {sample_rate}  \
+                    -r {playback_sample_rate} \
+                    -d 1  \
+                    -g {tuner_gain} \
+                    -l {squelch}  \
+                    -p {ppm_error}  \
+                    --{action} {filename}  \
+                    {deinvert} &'
 
                 st.write(':red[Executing:]', rtl_fm_command)
 
-                output = subprocess.run(['rtl-fm-stop', '1'], capture_output=True, text=True).stdout
-                output = subprocess.run(rtl_fm_command, capture_output=True, text=True).stdout
-                output
+                subprocess.run(
+                    '/home/rlevit/.local/bin/rtl-fm-stop 1',
+                    capture_output=False,
+                    shell=True
+                )
+                subprocess.run(
+                    rtl_fm_command,
+                    capture_output=False,
+                    shell=True
+                )
 
 
         with st.form("execution_control"):
             stop = st.form_submit_button(label='Stop')
             if stop:
-                result = execute_process('rtl-fm-stop 1')
-                st.write('Stopping radio 1')
-                st.stop()
+                result = subprocess.run(
+                    '/home/rlevit/.local/bin/rtl-fm-stop 1',
+                    capture_output=True,
+                    text=True,
+                    shell=True
+                ).stdout
+                st.write(result)
 
 with presets:
     st.header('Presets')
 
+    with st.status("Radio 1 status", expanded=True):
+        check = st.button("Check state")
+        if check:
+            output = subprocess.run(
+                "ps -ef | grep rtl-fm | grep -e '-d 1' | grep -v grep | cut -d ' ' -f 21- | cut -d/ -f 6-",
+                capture_output=True,
+                text=True,
+                shell=True
+            ).stdout
+            if output:
+                st.info('Radio is running the following parameters:')
+                st.info(output)
+            else:
+                st.info('Radio is not running')
