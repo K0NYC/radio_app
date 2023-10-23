@@ -201,9 +201,7 @@ with tuner:
             tuner_start_button = st.form_submit_button('Start')
 
             if tuner_start_button:
-                if frequencies:
-                    st.info(frequencies)
-                else:
+                if not frequencies:
                     st.warning("Please enter frequency", icon="⚠️")
                     st.stop()
 
