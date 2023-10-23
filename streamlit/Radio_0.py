@@ -51,10 +51,6 @@ with tuner:
 
         with st.form('frequency_selector'):
             st.write("### Frequency selector")
-            # st.write(
-            #     "Enter or select frequencies in one group at a time, "
-            #     "then press Submit before configuring other tuner parameters"
-            # )
 
             frequencies = []
             output = st.text_input(
@@ -130,18 +126,6 @@ with tuner:
             if output:
                 frequencies = parse_frequency_list(output)
 
-            frequency_selector_button = st.form_submit_button('Submit')
-
-            if frequency_selector_button:
-                if frequencies:
-                    st.info(frequencies)
-                else:
-                    st.error('No frequencies were entered')
-
-    with col2:
-        with st.form('radio_config'):
-            st.write('### Tuner parameters')
-
             modulation = st.selectbox(
                 'Select modulation',
                 ('fm', 'am', 'wbfm', 'raw', 'usb', 'lsb')
@@ -182,24 +166,18 @@ with tuner:
 
             st.markdown(
                 '### Actions',
-                help='''
-                - play to the local sound card,
-                - stream to network on port 8080,
-                - sound activated recording to a file (must enter a file name below),
-                - play to the local sound card and sound activated recording to a file (must enter a file name below
+                help=
+                '''
+                    - play to the local sound card
+                    - stream to network on port 8080
+                    - sound activated recording to a file (must enter a file name below)
+                    - play to the local sound card and sound activated recording to a file (must enter a file name below
                 '''
             )
-            # st.markdown('- play to the local sound card,')
-            # st.markdown('- stream to network on port 8080,')
-            # st.markdown('- sound activated recording to a file (must enter a file name below),')
-            # st.markdown('- play to the local sound card and sound activated recording to a file (must enter a file name below')
 
             action = st.radio(
                 'actions',
-                ('play',
-                'stream',
-                'sar',
-                'play-sar'),
+                ('play', 'stream', 'sar', 'play-sar'),
                 horizontal=True,
                 label_visibility='collapsed'
             )
@@ -211,9 +189,7 @@ with tuner:
 
             st.markdown('### Options')
 
-            deinvert = st.checkbox(
-                'deinvert'
-            )
+            deinvert = st.checkbox('deinvert')
 
             preset = st.slider(
                 'Select deinvert preset',
@@ -225,7 +201,9 @@ with tuner:
             tuner_start_button = st.form_submit_button('Start')
 
             if tuner_start_button:
-                if not frequencies:
+                if frequencies:
+                    st.info(frequencies)
+                else:
                     st.warning("Please enter frequency", icon="⚠️")
                     st.stop()
 
@@ -263,23 +241,43 @@ with tuner:
 
                 st.write(':red[Executing:]', rtl_fm_command)
 
-                result = subprocess.run('/home/rlevit/.local/bin/rtl-fm-stop 0', capture_output=False, text=True, shell=True).stdout
-                result = subprocess.run(rtl_fm_command, capture_output=False, text=True, shell=True).stdout
+                subprocess.run(
+                    '/home/rlevit/.local/bin/rtl-fm-stop 0',
+                    capture_output=False,
+                    shell=True
+                )
+                subprocess.run(
+                    rtl_fm_command,
+                    capture_output=False,
+                    shell=True
+                )
 
 
         with st.form("execution_control"):
             stop = st.form_submit_button(label='Stop')
             if stop:
-                result = subprocess.run('/home/rlevit/.local/bin/rtl-fm-stop 0', capture_output=False, text=True, shell=True).stdout
-                st.write('Stopping radio 0')
+                result = subprocess.run(
+                    '/home/rlevit/.local/bin/rtl-fm-stop 0',
+                    capture_output=True,
+                    text=True,
+                    shell=True
+                ).stdout
+                st.write(result)
 
 with presets:
     st.header('Presets')
 
-    status = "ps -ef | grep rtl-fm | grep -e '-d 0' | grep -v grep | cut -d ' ' -f 21- | cut -d/ -f 6-"
-    output = subprocess.run(status, capture_output=True, text=True, shell=True).stdout
-    if output:
-        st.info('Radio is running the following parameters:')
-        st.info(output)
-    else:
-        st.info('Radio is not running')
+    with st.status("Radio 0 status", expanded=True):
+        check = st.button("Check state")
+        if check:
+            output = subprocess.run(
+                "ps -ef | grep rtl-fm | grep -e '-d 0' | grep -v grep | cut -d ' ' -f 21- | cut -d/ -f 6-",
+                capture_output=True,
+                text=True,
+                shell=True
+            ).stdout
+            if output:
+                st.info('Radio is running the following parameters:')
+                st.info(output)
+            else:
+                st.info('Radio is not running')
